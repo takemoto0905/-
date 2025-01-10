@@ -1,0 +1,24 @@
+clear all
+a = 10:5:60;
+b = -10:5:20;
+ps = 1:0.4:5;
+ramp = 30:4:80;
+phif = 30:3:85;
+xo = 1010:100:4010;
+
+time_steps = 100;
+
+% パラメータ組み合わせの行列生成
+[P1, P2, P3, P4, P5, P6] = ndgrid(a, b, ps, ramp, phif, xo);
+param_comb = [P1(:), P2(:), P3(:), P4(:), P5(:), P6(:)];
+
+% 観測データの読み込み
+load 'observed1.txt';
+X = observed1(:, 1);
+Y = observed1(:, 2);
+RA = observed1(:, 3);
+observed_points = [X, Y];
+
+% 最適スコアとパラメータセットの初期化
+best_score = inf;
+best_param = zeros(1, 6);
