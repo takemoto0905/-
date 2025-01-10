@@ -1,0 +1,112 @@
+clear all
+a=35;
+b=10;
+ps=2.5;
+ramp=50;
+phif=60;
+xo=2610;
+
+a = a * pi / 180;
+b = b * pi / 180;
+ramp = ramp * pi / 180;
+phif = phif * pi / 180;
+phi=0;
+
+time_steps = 100;
+Count=0;
+SCORE=[];
+yo = xo * tan(pi / 2 - ramp);
+R = norm([xo, yo]);
+displacement = R * phif/ps;
+
+xf = xo;
+yf = yo - R;
+v = displacement / time_steps;
+vx = v;
+vy = 0;
+
+pointset;
+
+% 観測点の読み込み
+load 'observed1.txt';
+X = observed1(:, 1);
+Y = observed1(:, 2);
+RA = observed1(:, 3);
+observed_points = [X, Y];
+
+% アニメーションの作成
+figure;
+hold on;
+axis equal;
+axis([-1000 4000 -1000 1000]);
+grid on;
+xlabel('X軸(m)');
+ylabel('Y軸(m)');
+title('Trishear listric model');
+
+% 観測点をプロット
+plot(X, Y, 'k.', 'MarkerSize', 10);
+
+trajectoryxf = zeros(1, time_steps);
+trajectoryyf = zeros(1, time_steps);
+
+for t = 1:time_steps
+    dist_mato=sqrt((x_matrix - xo).^2 + (y_matrix - yo).^2);
+    tan_mat = (y_matrix-yf)./(x_matrix-xf);
+    ang_mat = atan((x_matrix-xo)./(y_matrix-yo));
+  
+    cond1= dist_mato >= R & x_matrix <= xo & x_matrix >xf & y_matrix<yo;%円弧状断層の下,footwall
+
+    cond2= x_matrix<=xf & y_matrix <= tan(b-phi).* (x_matrix - xf) + yf; %trishear zone 下側,footwall
+
+    cond3 = x_matrix >= xo & y_matrix < yo-R; %平坦断層の下,footwall
+
+    cond4 = x_matrix > xo & y_matrix > yo-R; %直線断層剛体運動
+
+    cond5 = 0 <= ang_mat & ang_mat <= phi & dist_mato < R & y_matrix<yo; %hanging wall, カーブ
+
+    cond6 = y_matrix > tan(b-phi) .* (x_matrix - xf) + yf & y_matrix < -tan(phi+a).*(x_matrix-xf)+yf & phi+a < pi/2;
+
+    cond7 = y_matrix > tan(b-phi) .* (x_matrix - xf) + yf & y_matrix > -tan(phi+a).*(x_matrix-xf)+yf & phi+a > pi/2; %cond6~cond7 trishear zone
+
+    cond8 = ~cond1 & ~cond2 & ~cond3 & ~cond4 & ~cond5 & ~cond6 & ~cond7; % hanging wall
+
+    x_matrix(cond4) = x_matrix(cond4) - v;
+
+    x_matrix(cond5) = x_matrix(cond5) - v*cos(ang_mat(cond5));
+    y_matrix(cond5) = y_matrix(cond5) + v*sin(ang_mat(cond5));
+
+    x_matrix(cond6)=x_matrix(cond6)-vx*(tan(b)-tan(phi+atan(tan_mat(cond6))))./(tan(a)+tan(b))+vy*tan(b)*(tan(b)-tan(phi+atan(tan_mat(cond6)))).*(-tan(a)-tan(phi+atan(tan_mat(cond6))))./((tan(a)+tan(b))^2);
+    y_matrix(cond6)=y_matrix(cond6)+vy*(tan(b)-tan(phi+atan(tan_mat(cond6))))./(tan(a)+tan(b))+vx*tan(b)*(tan(b)-tan(phi+atan(tan_mat(cond6)))).*(-tan(a)-tan(phi+atan(tan_mat(cond6))))./((tan(a)+tan(b))^2);
+
+    x_matrix(cond7)=x_matrix(cond7)-vx*(tan(b)-tan(phi+atan(tan_mat(cond7))))/(tan(a)+tan(b))+vy*tan(b)*(tan(b)-tan(phi+atan(tan_mat(cond7)))).*(-tan(a)-tan(phi+atan(tan_mat(cond7))))./((tan(a)+tan(b))^2);
+    y_matrix(cond7)=y_matrix(cond7)+vy*(tan(b)-tan(phi+atan(tan_mat(cond7))))/(tan(a)+tan(b))+vx*tan(b)*(tan(b)-tan(phi+atan(tan_mat(cond7)))).*(-tan(a)-tan(phi+atan(tan_mat(cond7))))./((tan(a)+tan(b))^2);
+
+    x_matrix(cond8) = x_matrix(cond8) - vx;
+    y_matrix(cond8) = y_matrix(cond8) + vy;
+
+    xf = xf - ps * vx;
+    yf = yf + ps * vy;
+    phi = phi + v*ps/ R;
+    vx = v * cos(phi);
+    vy = v * sin(phi);
+
+    trajectoryxf(t) = xf;
+    trajectoryyf(t) = yf;
+
+    % 動的な更新部分
+    cla;
+    plot(X, Y, 'k.', 'MarkerSize', 10); % 観測点を再描画
+    plot(x_matrix, y_matrix, 'b.'); % 層の位置を描画
+    plot(xf, yf, 'ro', 'MarkerSize', 8); % 断層の先端を描画
+    plot(trajectoryxf(1:t), trajectoryyf(1:t), 'r', 'LineWidth', 1.5); % 断層先端の軌跡を描画
+
+    % アニメーションを更新
+    drawnow;
+end
+
+hold on;
+
+searchingpoints;
+plot(closest_points(:,1),closest_points(:,2),'go');
+hold off;
